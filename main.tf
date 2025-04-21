@@ -11,6 +11,10 @@ provider "google" {
   credentials = file(var.keyfile_location)
   region      = var.region
   project     = var.gcp_project_id
+  /*
+  This is a hack, we need to develop more mature solution !!!!
+  We need to implement mutli
+  */
 }
 
 module "kubernetes" {
