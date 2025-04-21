@@ -18,6 +18,8 @@ module "kubernetes" {
   region = var.region
   prefix = var.prefix
 
+####  TODO: please change this one to support multi-cloud provisioning
+
   machines    = var.machines
   ssh_pub_key = var.ssh_pub_key
 
