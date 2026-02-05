@@ -8,23 +8,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.codes.code_metrics_measures import CodeMetricsExtractor
-
-class Additions:
-    def __init__(self, mod):
-        self.mod = mod
-
-    def get_added_lines_in_a_file(self):
-        return [x[0] for x in self.mod.diff_parsed['added']]
-
-    def get_added_lines_content_in_a_file(self):
-        return [x[1] for x in self.mod.diff_parsed['added']]
-
-class Deletions:
-    def __init__(self, mod):
-        self.mod = mod
-
-    def get_deleted_lines_in_a_file(self):
-        return [x[0] for x in self.mod.diff_parsed['deleted']]
+from scripts.process.lines_change.additions import Additions
+from scripts.process.lines_change.deletions import Deletions
 
 class ImpactedBlocks:
 
