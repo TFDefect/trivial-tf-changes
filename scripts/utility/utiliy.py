@@ -52,10 +52,8 @@ class UtilityChange:
                 continue
 
             if inside_multi_line_comment:
-                continue
-
-            if inside_multi_line_comment and stripped_line.endswith('*/'):
-                inside_multi_line_comment = False
+                if stripped_line.endswith('*/'):
+                    inside_multi_line_comment = False
                 continue
 
             if stripped_line.startswith(('#', '//')):

@@ -81,6 +81,8 @@ def process_commit(commit, previous_contributions, author_commits_count):
 
             if impactedBlocks:
                 print(f"Impacted blocks found for {mod.filename}: {len(impactedBlocks)} blocks")
+                for b in impactedBlocks:
+                    print(f" - Block: {b.get('block_name')} ({b.get('start_block')}-{b.get('end_block')})")
                 for block in impactedBlocks:
                     # 0. Contribution
                     contribution = {
@@ -128,92 +130,94 @@ def process_commit(commit, previous_contributions, author_commits_count):
     
     return contributions
 
-def collect_metrics(repo_path, target_commit=None):
-    print(f"Starting metrics collection on: {repo_path}")
-    if target_commit:
-        print(f"Targeting single commit: {target_commit}")
+    return contributions
 
+def collect_metrics_jit(repo_path, target_commit):
+    """
+    Collect metrics for a specific commit (Just-In-Time).
+    """
+    print(f"Starting JIT metrics collection on: {repo_path} for commit {target_commit}")
     output_file = "metrics.csv"
     
-    # Context
+    # JIT context (empty for now, can be hydrated if needed)
     previous_contributions = []
     author_commits_count = {}
 
-    # We will determine headers dynamically from the first valid contribution
+    # Check for existing headers
     headers = None
     file_exists = os.path.isfile(output_file)
+    if file_exists:
+        with open(output_file, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                headers = next(reader)
+            except StopIteration:
+                pass
 
-    # Logic:
-    # If target_commit is set, we assume JIT mode. 
-    # Logic for JIT: Only process the specific commit.
-    # Note: For strict JIT without hydrating previous_contributions from history, metrics depending on history 
-    # (like ndevs, exp, num_defects_before) starts from 0/empty. 
-    # If the user wants full context for JIT, they would need to load history or traverse up to that point.
-    # Assuming standard behavior -> process just this commit with empty context OR traverse until found.
-    # To support "just-in-time extraction (commit being committed in github)", usually implies fast execution.
-    # We will implement "Process ONLY this commit" for now.
+    # Process specific commit
+    repo_mining = Repository(repo_path, single=target_commit)
     
-    # Remove existing file if it exists to start fresh ONLY if we are doing a full run
-    if not target_commit and os.path.exists(output_file):
-        os.remove(output_file)
-        file_exists = False
-    
-    # Repo traversal
-    if target_commit:
-        # JIT Mode: Only process the specific commit
-        # We need to find the commit object. pydriller can iterate slightly to find it or we assume it's HEAD if checked out
-        # Using single commit traversal
-        repo_mining = Repository(repo_path, single=target_commit)
-    else:
-        # Full Mode
-        repo_mining = Repository(repo_path, order='reverse')
-
-    count = 0
     for commit in repo_mining.traverse_commits():
-        
-        # In JIT mode with single=hash, loop runs once.
-        
         new_contributions = process_commit(commit, previous_contributions, author_commits_count)
         
         if new_contributions:
-            # Determine headers if needed
             if headers is None:
-                # If file exists (e.g. appending in JIT), read headers from it?
-                # Or just use the new keys. 
-                # If we are appending to an existing file, we should arguably verify headers match or just proceed.
-                # For safety, let's derive from data.
-                if file_exists:
-                     with open(output_file, 'r', newline='', encoding='utf-8') as f:
-                        reader = csv.reader(f)
-                        try:
-                            headers = next(reader)
-                        except StopIteration:
-                            pass # File empty
-                
-                if headers is None or len(headers) == 0:
-                    headers = list(new_contributions[0].keys())
-                    print(f"Dynamic Headers determined ({len(headers)} columns)")
+                headers = list(new_contributions[0].keys())
+                print(f"Dynamic Headers determined ({len(headers)} columns)")
             
-            # Write results
             with open(output_file, mode='a', newline='', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
-                
                 if not file_exists:
                     writer.writeheader()
-                    file_exists = True # Header written
-                
+                    file_exists = True
+                for contribution in new_contributions:
+                    writer.writerow(contribution)
+        
+    print(f"JIT Metrics collection complete for commit {target_commit}.")
+
+def collect_metrics_full(repo_path):
+    """
+    Collect metrics for the entire repository history.
+    """
+    print(f"Starting FULL metrics collection on: {repo_path}")
+    output_file = "metrics.csv"
+    
+    # Remove existing file for full run
+    if os.path.exists(output_file):
+        os.remove(output_file)
+    
+    previous_contributions = []
+    author_commits_count = {}
+    headers = None
+    file_exists = False
+
+    repo_mining = Repository(repo_path, order='reverse')
+    
+    for commit in repo_mining.traverse_commits():
+        new_contributions = process_commit(commit, previous_contributions, author_commits_count)
+        
+        if new_contributions:
+            if headers is None:
+                headers = list(new_contributions[0].keys())
+                print(f"Dynamic Headers determined ({len(headers)} columns)")
+            
+            with open(output_file, mode='a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
+                if not file_exists:
+                    writer.writeheader()
+                    file_exists = True
                 for contribution in new_contributions:
                     writer.writerow(contribution)
             
-            # Update history
             previous_contributions.extend(new_contributions)
-        
-        count += 1
-        # Optional: break for testing if too long
-        # if not target_commit and count > 10: break
+            
+    print(f"Full Metrics collection complete. Output saved to {output_file}")
 
-    print(f"Metrics collection complete. Output saved to {output_file}")
-
+def collect_metrics(repo_path, target_commit=None):
+    if target_commit:
+        collect_metrics_jit(repo_path, target_commit)
+    else:
+        collect_metrics_full(repo_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collect Terraform metrics.")
@@ -221,5 +225,4 @@ if __name__ == "__main__":
     parser.add_argument("--commit", type=str, help="Specific commit hash to process (JIT mode)")
     
     args = parser.parse_args()
-    
     collect_metrics(args.repo_path, args.commit)
