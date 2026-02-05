@@ -15,7 +15,7 @@ class TestJITIntegration(unittest.TestCase):
         # We expect exactly 1 impacted block.
         # Testing with an older commit to ensure it DOES NOT traverse forward.
         # Commit a80c034... (add all TF blocks)
-        target_commit = "a80c034ceb4101ed6b5bbe948a91dbda99798788"
+        target_commit = "484ac9e74d554e14da5d18b1e60003b94ccb577f"
 
         repo_path = os.getcwd()
         output_file = "metrics.csv"
