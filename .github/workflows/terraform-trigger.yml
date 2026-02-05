@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -41,3 +43,14 @@ jobs:
           else
             echo "✅ Terraform code is properly formatted."
           fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Terraform Change Analyzer
+        run: python scripts/analyze_changes.py
