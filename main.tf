@@ -10,6 +10,7 @@ terraform {
 provider "google" {
   credentials = file(var.keyfile_location)
   region      = var.region
+  project     = var.gcp_project_id
 }
 
 module "kubernetes" {
@@ -31,5 +32,4 @@ module "kubernetes" {
   ssh_whitelist        = var.ssh_whitelist
   api_server_whitelist = var.api_server_whitelist
   nodeport_whitelist   = var.nodeport_whitelist
-  cluster_name         = "test-cluster"
 }
