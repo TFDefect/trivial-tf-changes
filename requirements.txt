@@ -1,3 +1,5 @@
 pydriller
 numpy
 nltk
+scikit-learn
+jellyfish
