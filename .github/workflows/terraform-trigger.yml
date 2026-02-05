@@ -3,20 +3,41 @@ name: Terraform Change Trigger
 on:
   push:
     paths:
-      - '**.tf'
+      - '**/*.tf'
   pull_request:
     paths:
-      - '**.tf'
+      - '**/*.tf'
 
 jobs:
   terraform-changed:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7  # ✅ Set your preferred version
 
-      - name: Terraform Format
-        run: terraform fmt -check
+      - name: Run terraform fmt check and save output
+        id: fmt
+        run: |
+          terraform fmt -check -recursive -diff > fmt_output.txt || echo "Formatting issues found." >> fmt_output.txt
+          cat fmt_output.txt
+
+      - name: Upload terraform fmt output
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-fmt-output
+          path: fmt_output.txt
+
+      - name: Fail if formatting issues were found
+        run: |
+          if grep -q '^diff' fmt_output.txt || grep -q '\.tf' fmt_output.txt; then
+            echo "Terraform formatting issues detected."
+            exit 1
+          else
+            echo "Terraform code is properly formatted."
+          fi
