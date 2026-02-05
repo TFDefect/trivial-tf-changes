@@ -37,4 +37,6 @@ module "kubernetes" {
   api_server_whitelist = var.api_server_whitelist
   nodeport_whitelist   = var.nodeport_whitelist
   cluster_name         = "test-cluster"
+
+  ssh_pub_key = var.ssh_pub_key
 }

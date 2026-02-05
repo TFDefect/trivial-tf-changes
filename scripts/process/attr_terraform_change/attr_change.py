@@ -45,3 +45,14 @@ class AttrChange:
             "additions_contains_meta_args_change": metaArgsChange.additions_contains_meta_arguments_change(),
             "deletions_contains_meta_args_change": metaArgsChange.deletions_contains_meta_arguments_change(),
         }
+
+    @staticmethod
+    def get_headers():
+        return [
+            "additions_contains_default_change", "deletions_contains_default_change",
+            "additions_contains_type_change", "deletions_contains_type_change",
+            "additions_contains_value_output_change", "deletions_contains_value_output_change",
+            "additions_contains_versioning_change", "deletions_contains_versioning_change",
+            "additions_contains_description_change", "deletions_contains_description_change",
+            "additions_contains_meta_args_change", "deletions_contains_meta_args_change",
+        ]

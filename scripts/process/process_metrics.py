@@ -2,18 +2,6 @@ import numpy as np
 from scripts.utility.commit_filters import get_subs_dire_name
 
 
-def get_subs_dire_name(fileDirs):
-    fileDirs = fileDirs.split("/")
-    if len(fileDirs) == 1:
-        subsystem = "root"
-        directory = "root"
-    else:
-        subsystem = fileDirs[0]
-        directory = "/".join(fileDirs[0:-1])
-    file_name = fileDirs[-1]
-
-    return subsystem, directory, file_name
-
 class ProcessMetrics:
 
     def __init__(self, contribution, previous_contributions):
@@ -268,3 +256,11 @@ class ProcessMetrics:
             # Count the number of unique commits that changed before the current block
             "num_unique_change": self.num_unique_change()
         }
+
+    @staticmethod
+    def get_headers():
+        return [
+            "ndevs", "ncommits", "code_ownership", "exp", "rexp", "sexp", "bexp", 
+            "age", "time_interval", "num_defects_before", 
+            "num_same_instances_changed_before", "kexp", "num_unique_change"
+        ]

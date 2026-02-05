@@ -52,5 +52,12 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Terraform Change Analyzer
-        run: python scripts/analyze_changes.py
+      - name: Run JIT Metrics Collection
+        run: python scripts/collect_metrics.py --commit ${{ github.sha }}
+
+      - name: Upload Metrics Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-csv
+          path: metrics.csv
