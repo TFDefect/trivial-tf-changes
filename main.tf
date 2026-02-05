@@ -20,7 +20,6 @@ provider "google" {
 module "kubernetes" {
   source = "./modules/kubernetes-cluster"
   region = var.region
-  prefix = var.prefix
 
 ####  TODO: please change this one to support multi-cloud provisioning, we need to enhance more the identification and configure well the servers !!
 
@@ -39,5 +38,4 @@ module "kubernetes" {
   ssh_whitelist        = var.ssh_whitelist
   api_server_whitelist = var.api_server_whitelist
   nodeport_whitelist   = var.nodeport_whitelist
-  ingress_whitelist    = var.ingress_whitelist
 }
