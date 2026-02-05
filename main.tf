@@ -39,4 +39,6 @@ module "kubernetes" {
   cluster_name         = "test-cluster"
 
   ssh_pub_key = var.ssh_pub_key
+
+  
 }
