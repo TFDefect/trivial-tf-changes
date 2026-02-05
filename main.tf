@@ -21,8 +21,6 @@ module "kubernetes" {
   source = "./modules/kubernetes-cluster"
   region = var.region
 
-  ####  TODO: please change this one to support multi-cloud provisioning, we need to enhance more the identification and configure well the servers !! [Trigger Test]
-
   machines    = var.machines
   ssh_pub_key = var.ssh_pub_key
 
