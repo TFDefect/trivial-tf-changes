@@ -1,0 +1,19 @@
+name: Terraform Change Trigger
+
+on:
+  push:
+    paths:
+      - '**.tf'
+  pull_request:
+    paths:
+      - '**.tf'
+
+jobs:
+  terraform-changed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Terraform Logic
+        run: echo "Terraform files have changed. Running application logic..."
