@@ -10,8 +10,6 @@ terraform {
 provider "google" {
   credentials = file(var.keyfile_location)
   region      = var.region
-  test = "test"
-  # Test change for Docker metrics collection
 }
 
 module "kubernetes" {
