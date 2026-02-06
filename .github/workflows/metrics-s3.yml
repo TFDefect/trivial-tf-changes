@@ -1,0 +1,105 @@
+name: Metrics Collection (S3 Storage)
+
+on:
+  push:
+    paths:
+      - '**.tf'
+  pull_request:
+    paths:
+      - '**.tf'
+
+concurrency:
+  group: metrics-collection-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  S3_BUCKET: ${{ secrets.METRICS_S3_BUCKET }}
+  S3_PREFIX: metrics
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install AWS CLI and dependencies
+        run: |
+          pip install boto3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      
+      - name: Download metrics from S3
+        run: |
+          python scripts/storage_manager.py \
+            --file metrics.csv \
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-prefix ${{ env.S3_PREFIX }} \
+            --download
+      
+      - name: Rotate metrics if needed
+        run: |
+          python scripts/storage_manager.py \
+            --file metrics.csv \
+            --max-size 10 \
+            --keep-rows 500
+      
+      - name: Build Docker image
+        run: docker build -t tf-metrics:latest .
+      
+      - name: Collect metrics for this commit
+        run: |
+          set -e
+          if [ -f "metrics.csv" ]; then
+            echo "Using historical context from S3"
+            docker run \
+              -v ${{ github.workspace }}:/repo \
+              -w /repo \
+              tf-metrics:latest . \
+              --commit ${{ github.sha }} \
+              --history metrics.csv
+          else
+            echo "No historical context available"
+            docker run \
+              -v ${{ github.workspace }}:/repo \
+              -w /repo \
+              tf-metrics:latest . \
+              --commit ${{ github.sha }}
+          fi
+      
+      - name: Upload metrics to S3
+        run: |
+          python scripts/storage_manager.py \
+            --file metrics.csv \
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-prefix ${{ env.S3_PREFIX }} \
+            --upload
+      
+      - name: Upload archives to S3 (if any)
+        if: hashFiles('metrics_archive_*.csv') != ''
+        run: |
+          for archive in metrics_archive_*.csv; do
+            aws s3 cp "$archive" "s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/archives/"
+          done
+      
+      - name: Display summary
+        run: |
+          if [ -f "metrics.csv" ]; then
+            echo "✓ Metrics collected and uploaded to S3"
+            echo "File size: $(du -h metrics.csv | cut -f1)"
+            echo "Row count: $(wc -l < metrics.csv)"
+            echo "S3 location: s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/metrics.csv"
+          fi
