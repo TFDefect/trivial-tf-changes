@@ -72,14 +72,17 @@ jobs:
       
       - name: Collect metrics for this commit
         run: |
+          set -e  # Exit on error
           if [ -f "metrics.csv" ]; then
             echo "Using historical context"
+            echo "History file size: $(du -h metrics.csv | cut -f1)"
             docker run \
               -v ${{ github.workspace }}:/repo \
               -w /repo \
               tf-metrics:latest . \
               --commit ${{ github.sha }} \
               --history metrics.csv
+            echo "Docker run completed with exit code: $?"
           else
             echo "No historical context available"
             docker run \
@@ -87,7 +90,10 @@ jobs:
               -w /repo \
               tf-metrics:latest . \
               --commit ${{ github.sha }}
+            echo "Docker run completed with exit code: $?"
           fi
+          echo "Listing files after Docker run:"
+          ls -la *.csv 2>/dev/null || echo "No CSV files found"
       
       - name: Debug - List CSV files
         run: |
