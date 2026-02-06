@@ -196,8 +196,10 @@ def collect_metrics_jit(repo_path, target_commit, history_file=None):
     """
     print(f"Starting JIT metrics collection on: {repo_path} for commit {target_commit}")
     
-    # Use separate files for clarity: history vs new instance
-    new_instance_file = "metrics_new_instance.csv"
+    # File naming convention:
+    # - metrics.csv: Current run metrics only
+    # - metrics_history.csv: All accumulated historical metrics
+    current_metrics_file = "metrics.csv"
     history_metrics_file = "metrics_history.csv"
     
     # JIT context - can be hydrated from history file
@@ -226,25 +228,27 @@ def collect_metrics_jit(repo_path, target_commit, history_file=None):
                 print(f"Dynamic Headers determined ({len(headers)} columns)")
             new_contributions_list.extend(new_contributions)
     
-    # Write new instance metrics to separate file
+    # Write current metrics to metrics.csv
     if new_contributions_list:
-        with open(new_instance_file, mode='w', newline='', encoding='utf-8') as csvfile:
+        with open(current_metrics_file, mode='w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for contribution in new_contributions_list:
                 writer.writerow(contribution)
-        print(f"Wrote {len(new_contributions_list)} new instance rows to {new_instance_file}")
+        print(f"Wrote {len(new_contributions_list)} rows to {current_metrics_file}")
         
-        # Merge new instance with history if it exists
+        # Merge current with history to create accumulated metrics_history.csv
         if history_file and os.path.exists(history_file):
-            print(f"Merging new instance with history...")
-            merge_metrics_files(history_file, new_instance_file, history_metrics_file)
-            os.remove(new_instance_file)  # Clean up temporary file
+            print(f"Merging current metrics with history...")
+            merge_metrics_files(history_file, current_metrics_file, history_metrics_file)
         else:
-            # No history, just rename new instance file
-            os.rename(new_instance_file, history_metrics_file)
+            # No history, copy current to history
+            import shutil
+            shutil.copy(current_metrics_file, history_metrics_file)
         
-        print(f"JIT Metrics collection complete. Output: {history_metrics_file}")
+        print(f"JIT Metrics collection complete.")
+        print(f"  Current metrics: {current_metrics_file}")
+        print(f"  Historical metrics: {history_metrics_file}")
     else:
         print("No metrics collected for this commit")
 

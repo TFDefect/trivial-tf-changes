@@ -43,19 +43,38 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
       
       - name: Download metrics from S3
+        continue-on-error: true
         run: |
+          echo "Downloading metrics_history.csv from S3..."
           python scripts/storage_manager.py \
-            --file metrics.csv \
+            --file metrics_history.csv \
             --s3-bucket ${{ env.S3_BUCKET }} \
             --s3-prefix ${{ env.S3_PREFIX }} \
             --download
       
+      - name: Check if history was downloaded
+        run: |
+          echo "=== Metrics History Status ==="
+          if [ -f "metrics_history.csv" ]; then
+            echo "✓ Historical metrics found from S3"
+            echo "  Total rows: $(wc -l < metrics_history.csv)"
+            echo "  File size: $(du -h metrics_history.csv | cut -f1)"
+            echo "  Preview (first 3 rows):"
+            head -n 3 metrics_history.csv
+          else
+            echo "⚠ No historical metrics found in S3"
+            echo "  This is the first run or bucket is empty"
+          fi
+          echo "==========================="
+      
       - name: Rotate metrics if needed
         run: |
-          python scripts/storage_manager.py \
-            --file metrics.csv \
-            --max-size 10 \
-            --keep-rows 500
+          if [ -f "metrics_history.csv" ]; then
+            python scripts/storage_manager.py \
+              --file metrics_history.csv \
+              --max-size 10 \
+              --keep-rows 500
+          fi
       
       - name: Build Docker image
         run: docker build -t tf-metrics:latest .
@@ -63,14 +82,14 @@ jobs:
       - name: Collect metrics for this commit
         run: |
           set -e
-          if [ -f "metrics.csv" ]; then
+          if [ -f "metrics_history.csv" ]; then
             echo "Using historical context from S3"
             docker run \
               -v ${{ github.workspace }}:/repo \
               -w /repo \
               tf-metrics:latest . \
               --commit ${{ github.sha }} \
-              --history metrics.csv
+              --history metrics_history.csv
           else
             echo "No historical context available"
             docker run \
@@ -80,28 +99,20 @@ jobs:
               --commit ${{ github.sha }}
           fi
       
-      - name: Rename output file
+      - name: Upload metrics to S3
+        if: success() || failure()
         run: |
           if [ -f "metrics_history.csv" ]; then
-            echo "Found metrics_history.csv, renaming to metrics.csv"
-            mv metrics_history.csv metrics.csv
-          elif [ -f "metrics_new_instance.csv" ]; then
-            echo "Found metrics_new_instance.csv, renaming to metrics.csv"
-            mv metrics_new_instance.csv metrics.csv
-          elif [ ! -f "metrics.csv" ]; then
-            echo "ERROR: No metrics file found!"
-            exit 1
+            echo "Uploading metrics_history.csv to S3..."
+            python scripts/storage_manager.py \
+              --file metrics_history.csv \
+              --s3-bucket ${{ env.S3_BUCKET }} \
+              --s3-prefix ${{ env.S3_PREFIX }} \
+              --upload
+            echo "✓ Upload complete"
           else
-            echo "metrics.csv already exists, using it"
+            echo "⚠ No metrics_history.csv to upload"
           fi
-      
-      - name: Upload metrics to S3
-        run: |
-          python scripts/storage_manager.py \
-            --file metrics.csv \
-            --s3-bucket ${{ env.S3_BUCKET }} \
-            --s3-prefix ${{ env.S3_PREFIX }} \
-            --upload
       
       - name: Upload archives to S3 (if any)
         if: hashFiles('metrics_archive_*.csv') != ''
