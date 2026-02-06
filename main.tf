@@ -17,7 +17,6 @@ module "kubernetes" {
   region = var.region
 
   machines    = var.machines
-  ssh_pub_key = var.ssh_pub_key
 
   master_sa_email             = var.master_sa_email
   master_sa_scopes            = var.master_sa_scopes
