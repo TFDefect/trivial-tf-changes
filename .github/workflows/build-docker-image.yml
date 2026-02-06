@@ -8,7 +8,7 @@ on:
       - 'Dockerfile'
       - 'requirements.txt'
       - 'scripts/**'
-      - '.github/workflows/build-docker-image.yml'  # Add this line
+      - '.github/workflows/build-docker-image.yml'
   workflow_dispatch:  # Allow manual trigger
 
 env:
