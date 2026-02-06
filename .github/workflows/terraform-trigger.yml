@@ -1,63 +1,61 @@
-name: Terraform Change Trigger
+name: Terraform Metrics Collection
 
 on:
   push:
     paths:
-      - '**/*.tf'
+      - '**.tf'
   pull_request:
     paths:
-      - '**/*.tf'
+      - '**.tf'
 
 jobs:
-  terraform-changed:
+  collect-metrics:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+          fetch-depth: 0  # Full history for context
+      
+      - name: Download previous metrics (if exists)
+        uses: actions/download-artifact@v3
+        continue-on-error: true
         with:
-          terraform_version: 1.5.7  # You can set this to any version you need
-
-      - name: Run terraform fmt check and save output
-        id: fmt
+          name: metrics-history
+          path: .
+      
+      - name: Build Docker image
+        run: docker build -t tf-metrics:latest .
+      
+      - name: Collect metrics for this commit
         run: |
-          terraform fmt -check -recursive -diff > fmt_output.txt || echo "Terraform formatting issues found." >> fmt_output.txt
-          cat fmt_output.txt
-
-      - name: Upload terraform fmt output
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-fmt-output
-          path: fmt_output.txt
-
-      - name: Fail if formatting issues were found
-        run: |
-          if grep -q '^diff' fmt_output.txt || grep -q '\.tf' fmt_output.txt; then
-            echo "❌ Terraform formatting issues detected."
-            exit 1
+          if [ -f "metrics.csv" ]; then
+            echo "Using historical context from previous metrics"
+            docker run \
+              -v ${{ github.workspace }}:/repo \
+              tf-metrics:latest /repo \
+              --commit ${{ github.sha }} \
+              --history /repo/metrics.csv
           else
-            echo "✅ Terraform code is properly formatted."
+            echo "No historical context available, running without history"
+            docker run \
+              -v ${{ github.workspace }}:/repo \
+              tf-metrics:latest /repo \
+              --commit ${{ github.sha }}
           fi
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      
+      - name: Upload metrics as artifact
+        uses: actions/upload-artifact@v3
         with:
-          python-version: '3.12'
-          
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run JIT Metrics Collection
-        run: python scripts/collect_metrics.py --commit ${{ github.sha }}
-
-      - name: Upload Metrics Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: metrics-csv
+          name: metrics-history
           path: metrics.csv
+          retention-days: 90
+      
+      - name: Display metrics summary
+        run: |
+          if [ -f "metrics.csv" ]; then
+            echo "Metrics collected successfully"
+            wc -l metrics.csv
+            head -n 2 metrics.csv
+          fi

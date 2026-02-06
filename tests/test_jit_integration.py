@@ -13,9 +13,10 @@ class TestJITIntegration(unittest.TestCase):
     def test_jit_specific_commit(self):
         # The commit that removed 'ssh_pub_key' from 'module "kubernetes"'
         # We expect exactly 1 impacted block.
-        # Testing with an older commit to ensure it DOES NOT traverse forward.
-        # Commit a80c034... (add all TF blocks)
-        target_commit = "484ac9e74d554e14da5d18b1e60003b94ccb577f"
+        # The commit that removed 'ssh_pub_key' from 'module "kubernetes"'
+        # We expect exactly 1 impacted block.
+        target_commit = "b7a5df34ec7e520db89e213d72599bf905262ae9"
+
 
         repo_path = os.getcwd()
         output_file = "metrics.csv"
@@ -44,11 +45,16 @@ class TestJITIntegration(unittest.TestCase):
             
             # Assertions
             # Assertions
-            self.assertEqual(len(rows), 2, "Should identify 2 impacted blocks for this commit (terraform, provider)") 
-            # Note: The older commit had 2 blocks: terraform and provider google.
+            self.assertEqual(len(rows), 1, "Should identify 1 impacted block for this commit") 
+            # Note: Commit b7a5df3 has 1 modified block (kubernetes module).
             # We verify we got rows ONLY for this commit.
             for row in rows:
                 self.assertEqual(row['commit'], target_commit, "Row commit hash should match target exactly")
+                
+                # Check for Delta Metrics
+                self.assertIn('numAttrs_delta', row, "Delta metric 'numAttrs_delta' should be present")
+                print(f" - Delta Check: numAttrs_delta = {row.get('numAttrs_delta')}")
+
 
 
 if __name__ == '__main__':

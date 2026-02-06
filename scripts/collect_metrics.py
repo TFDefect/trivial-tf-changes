@@ -13,6 +13,7 @@ from scripts.process.process_metrics import ProcessMetrics
 from scripts.edits.similarity_change import SimilarityChange
 from scripts.process.lines_change.ImpactedLines import ImpactedLines
 from scripts.process.attr_terraform_change.attr_change import AttrChange
+from scripts.process.delta_metrics import DeltaMetrics
 from scripts.utility.commit_filters import is_undesired_commit, beSafeFromSpecialCommit
 
 # Global context for history (can be passed around or kept global for full run)
@@ -24,6 +25,52 @@ def get_author_experience(author_commits_count, author_name):
 
 def update_author_experience(author_commits_count, author_name):
     author_commits_count[author_name] = author_commits_count.get(author_name, 0) + 1
+
+def load_history_from_csv(csv_path):
+    """
+    Load previous contributions and author experience from existing metrics.csv.
+    
+    Args:
+        csv_path: Path to the historical metrics CSV file
+        
+    Returns:
+        tuple: (previous_contributions list, author_commits_count dict)
+    """
+    previous_contributions = []
+    author_commits_count = {}
+    
+    try:
+        with open(csv_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Add to previous contributions
+                # Convert date string back to datetime if needed
+                if 'date' in row and row['date']:
+                    try:
+                        from datetime import datetime
+                        row['date'] = datetime.fromisoformat(row['date'])
+                    except:
+                        pass  # Keep as string if conversion fails
+                
+                previous_contributions.append(row)
+                
+                # Track author experience (count unique commits per author)
+                author = row.get('author')
+                commit = row.get('commit')
+                if author and commit:
+                    if author not in author_commits_count:
+                        author_commits_count[author] = set()
+                    author_commits_count[author].add(commit)
+        
+        # Convert sets to counts
+        author_commits_count = {author: len(commits) for author, commits in author_commits_count.items()}
+        
+    except Exception as e:
+        print(f"Warning: Could not load history from {csv_path}: {e}")
+        return [], {}
+    
+    return previous_contributions, author_commits_count
+
 
 def process_commit(commit, previous_contributions, author_commits_count):
     """
@@ -116,6 +163,10 @@ def process_commit(commit, previous_contributions, author_commits_count):
                     # 2. Attr Change
                     attrChange = AttrChange(block, impactedLines.additions, impactedLines.deletions)
                     contribution.update(attrChange.resume_changed_attr())
+
+                    # 5. Delta Metrics
+                    delta = DeltaMetrics(block, blockBeforeChange)
+                    contribution.update(delta.compute_delta_metrics())
                     
                     contributions.append(contribution)
 
@@ -132,30 +183,37 @@ def process_commit(commit, previous_contributions, author_commits_count):
 
     return contributions
 
-def collect_metrics_jit(repo_path, target_commit):
+def collect_metrics_jit(repo_path, target_commit, history_file=None):
     """
     Collect metrics for a specific commit (Just-In-Time).
+    
+    Args:
+        repo_path: Path to the repository
+        target_commit: Commit hash to analyze
+        history_file: Optional path to previous metrics.csv for historical context
     """
     print(f"Starting JIT metrics collection on: {repo_path} for commit {target_commit}")
-    output_file = "metrics.csv"
     
-    # JIT context (empty for now, can be hydrated if needed)
+    # Use separate files for clarity: history vs new instance
+    new_instance_file = "metrics_new_instance.csv"
+    history_metrics_file = "metrics_history.csv"
+    
+    # JIT context - can be hydrated from history file
     previous_contributions = []
     author_commits_count = {}
-
-    # Check for existing headers
-    headers = None
-    file_exists = os.path.isfile(output_file)
-    if file_exists:
-        with open(output_file, 'r', newline='', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            try:
-                headers = next(reader)
-            except StopIteration:
-                pass
+    
+    # Load historical context if provided
+    if history_file and os.path.exists(history_file):
+        print(f"Loading historical context from: {history_file}")
+        previous_contributions, author_commits_count = load_history_from_csv(history_file)
+        print(f"Loaded {len(previous_contributions)} previous contributions")
+        print(f"Loaded {len(author_commits_count)} authors")
 
     # Process specific commit
     repo_mining = Repository(repo_path, single=target_commit)
+    
+    headers = None
+    new_contributions_list = []
     
     for commit in repo_mining.traverse_commits():
         new_contributions = process_commit(commit, previous_contributions, author_commits_count)
@@ -164,16 +222,59 @@ def collect_metrics_jit(repo_path, target_commit):
             if headers is None:
                 headers = list(new_contributions[0].keys())
                 print(f"Dynamic Headers determined ({len(headers)} columns)")
-            
-            with open(output_file, mode='a', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
-                if not file_exists:
-                    writer.writeheader()
-                    file_exists = True
-                for contribution in new_contributions:
-                    writer.writerow(contribution)
+            new_contributions_list.extend(new_contributions)
+    
+    # Write new instance metrics to separate file
+    if new_contributions_list:
+        with open(new_instance_file, mode='w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
+            writer.writeheader()
+            for contribution in new_contributions_list:
+                writer.writerow(contribution)
+        print(f"Wrote {len(new_contributions_list)} new instance rows to {new_instance_file}")
         
-    print(f"JIT Metrics collection complete for commit {target_commit}.")
+        # Merge new instance with history if it exists
+        if history_file and os.path.exists(history_file):
+            print(f"Merging new instance with history...")
+            merge_metrics_files(history_file, new_instance_file, history_metrics_file)
+            os.remove(new_instance_file)  # Clean up temporary file
+        else:
+            # No history, just rename new instance file
+            os.rename(new_instance_file, history_metrics_file)
+        
+        print(f"JIT Metrics collection complete. Output: {history_metrics_file}")
+    else:
+        print("No metrics collected for this commit")
+
+def merge_metrics_files(history_file, new_file, output_file):
+    """
+    Merge history and new metrics into a single output file.
+    
+    Args:
+        history_file: Path to historical metrics
+        new_file: Path to newly collected metrics
+        output_file: Path to merged output
+    """
+    import pandas as pd
+    
+    # Read both files
+    df_history = pd.read_csv(history_file)
+    df_new = pd.read_csv(new_file)
+    
+    # Combine
+    df_combined = pd.concat([df_history, df_new], ignore_index=True)
+    
+    # Remove duplicates (same commit + file + block_identifiers)
+    if 'commit' in df_combined.columns and 'file' in df_combined.columns:
+        df_combined = df_combined.drop_duplicates(
+            subset=['commit', 'file', 'block_identifiers'],
+            keep='last'
+        )
+    
+    # Write combined file
+    df_combined.to_csv(output_file, index=False)
+    print(f"Merged: {len(df_history)} history + {len(df_new)} new = {len(df_combined)} total rows")
+
 
 def collect_metrics_full(repo_path):
     """
@@ -213,9 +314,9 @@ def collect_metrics_full(repo_path):
             
     print(f"Full Metrics collection complete. Output saved to {output_file}")
 
-def collect_metrics(repo_path, target_commit=None):
+def collect_metrics(repo_path, target_commit=None, history_file=None):
     if target_commit:
-        collect_metrics_jit(repo_path, target_commit)
+        collect_metrics_jit(repo_path, target_commit, history_file)
     else:
         collect_metrics_full(repo_path)
 
@@ -223,6 +324,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collect Terraform metrics.")
     parser.add_argument("repo_path", type=str, nargs="?", default=os.getcwd(), help="Path to the repository")
     parser.add_argument("--commit", type=str, help="Specific commit hash to process (JIT mode)")
+    parser.add_argument("--history", type=str, help="Path to previous metrics.csv for historical context (JIT mode only)")
     
     args = parser.parse_args()
-    collect_metrics(args.repo_path, args.commit)
+    collect_metrics(args.repo_path, args.commit, args.history)
+
+def main():
+    """Entry point for console script."""
+    parser = argparse.ArgumentParser(description="Collect Terraform metrics.")
+    parser.add_argument("repo_path", type=str, nargs="?", default=os.getcwd(), help="Path to the repository")
+    parser.add_argument("--commit", type=str, help="Specific commit hash to process (JIT mode)")
+    parser.add_argument("--history", type=str, help="Path to previous metrics.csv for historical context (JIT mode only)")
+    
+    args = parser.parse_args()
+    collect_metrics(args.repo_path, args.commit, args.history)
+
+if __name__ == "__main__":
+    main()
