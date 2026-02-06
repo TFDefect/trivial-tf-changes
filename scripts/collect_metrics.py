@@ -171,7 +171,9 @@ def process_commit(commit, previous_contributions, author_commits_count):
                     contributions.append(contribution)
 
         except Exception as e:
-            # print(f"Error processing {mod.filename}: {e}", file=sys.stderr)
+            print(f"Error processing {mod.filename}: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
             pass
         finally:
             if pathAfterChange and os.path.exists(pathAfterChange):

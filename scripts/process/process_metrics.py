@@ -39,7 +39,7 @@ class ProcessMetrics:
     def num_defects_in_block_before(self):
         defects = list(prev_contribution for prev_contribution in
                        self.blocks_changed_before_as_current_changed_block_by_different_authors
-                       if prev_contribution["fault_prone"] == 1)
+                       if prev_contribution.get("fault_prone", 0) == 1)
         return len(defects)
 
     def kexp(self):
