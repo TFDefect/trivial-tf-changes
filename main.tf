@@ -16,8 +16,6 @@ module "kubernetes" {
   source = "./modules/kubernetes-source-data"
   region = var.region
 
-  machines    = var.machines
-
   master_sa_email             = var.master_sa_email
   master_sa_scopes            = var.master_sa_scopes
   master_preemptible          = var.master_preemptible
