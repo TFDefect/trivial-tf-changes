@@ -1,4 +1,4 @@
-name: Terraform Metrics Collection
+name: Metrics Collection (GitHub Artifacts)
 
 on:
   push:
@@ -16,14 +16,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for context
+          fetch-depth: 0
       
-      - name: Download previous metrics (if exists)
+      - name: Download previous metrics
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: metrics-history
           path: .
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Rotate metrics if needed
+        run: |
+          if [ -f "metrics.csv" ]; then
+            python scripts/storage_manager.py \
+              --file metrics.csv \
+              --max-size 10 \
+              --keep-rows 500
+          fi
       
       - name: Build Docker image
         run: docker build -t tf-metrics:latest .
@@ -31,14 +48,14 @@ jobs:
       - name: Collect metrics for this commit
         run: |
           if [ -f "metrics.csv" ]; then
-            echo "Using historical context from previous metrics"
+            echo "Using historical context"
             docker run \
               -v ${{ github.workspace }}:/repo \
               tf-metrics:latest /repo \
               --commit ${{ github.sha }} \
               --history /repo/metrics.csv
           else
-            echo "No historical context available, running without history"
+            echo "No historical context available"
             docker run \
               -v ${{ github.workspace }}:/repo \
               tf-metrics:latest /repo \
@@ -47,27 +64,29 @@ jobs:
       
       - name: Rename output file
         run: |
-          ls -la *.csv || echo "No CSV files found"
           if [ -f "metrics_history.csv" ]; then
-            echo "Found metrics_history.csv, renaming to metrics.csv"
             mv metrics_history.csv metrics.csv
-          elif [ ! -f "metrics.csv" ]; then
-            echo "ERROR: No metrics file found!"
-            exit 1
           fi
       
-      - name: Upload metrics as artifact
+      - name: Upload active metrics
         uses: actions/upload-artifact@v4
         with:
           name: metrics-history
           path: metrics.csv
           retention-days: 90
-          if-no-files-found: error
       
-      - name: Display metrics summary
+      - name: Upload archives (if any)
+        if: hashFiles('metrics_archive_*.csv') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-archives
+          path: metrics_archive_*.csv
+          retention-days: 365
+      
+      - name: Display summary
         run: |
           if [ -f "metrics.csv" ]; then
             echo "✓ Metrics collected successfully"
-            wc -l metrics.csv
-            head -n 2 metrics.csv
+            echo "File size: $(du -h metrics.csv | cut -f1)"
+            echo "Row count: $(wc -l < metrics.csv)"
           fi

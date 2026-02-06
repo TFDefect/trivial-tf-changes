@@ -4,4 +4,3 @@ __pycache__/
 *.pyc
 metrics.csv
 .github/workflows/metrics-s3.yml
-.github/workflows/metrics-github.yml
