@@ -10,11 +10,12 @@ terraform {
 provider "google" {
   credentials = file(var.keyfile_location)
   region      = var.region
+  test = "test"
   # Test change for Docker metrics collection
 }
 
 module "kubernetes" {
-  source = "./modules/kubernetes-source"
+  source = "./modules/kubernetes-source-data"
 
   master_sa_email             = var.master_sa_email
   master_sa_scopes            = var.master_sa_scopes
