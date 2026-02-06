@@ -80,6 +80,21 @@ jobs:
               --commit ${{ github.sha }}
           fi
       
+      - name: Rename output file
+        run: |
+          if [ -f "metrics_history.csv" ]; then
+            echo "Found metrics_history.csv, renaming to metrics.csv"
+            mv metrics_history.csv metrics.csv
+          elif [ -f "metrics_new_instance.csv" ]; then
+            echo "Found metrics_new_instance.csv, renaming to metrics.csv"
+            mv metrics_new_instance.csv metrics.csv
+          elif [ ! -f "metrics.csv" ]; then
+            echo "ERROR: No metrics file found!"
+            exit 1
+          else
+            echo "metrics.csv already exists, using it"
+          fi
+      
       - name: Upload metrics to S3
         run: |
           python scripts/storage_manager.py \
