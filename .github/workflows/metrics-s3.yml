@@ -119,17 +119,32 @@ jobs:
               --commit ${{ github.sha }}
           fi
       
-      - name: Upload metrics to S3
+      - name: Upload current metrics to S3 (for prediction)
+        if: success() || failure()
+        run: |
+          if [ -f "metrics.csv" ]; then
+            echo "Uploading metrics.csv (current commit only) to S3..."
+            aws s3 cp metrics.csv \
+              s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/current/metrics_${{ github.sha }}.csv
+            # Also upload as "latest" for easy access
+            aws s3 cp metrics.csv \
+              s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/current/metrics_latest.csv
+            echo "✓ Current metrics uploaded (for prediction)"
+          else
+            echo "⚠ No metrics.csv found"
+          fi
+      
+      - name: Upload history metrics to S3 (for training)
         if: success() || failure()
         run: |
           if [ -f "metrics_history.csv" ]; then
-            echo "Uploading metrics_history.csv to S3..."
+            echo "Uploading metrics_history.csv (accumulated) to S3..."
             python scripts/storage_manager.py \
               --file metrics_history.csv \
               --s3-bucket ${{ env.S3_BUCKET }} \
               --s3-prefix ${{ env.S3_PREFIX }} \
               --upload
-            echo "✓ Upload complete"
+            echo "✓ History upload complete (for training)"
           else
             echo "⚠ No metrics_history.csv to upload"
           fi
