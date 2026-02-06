@@ -8,6 +8,10 @@ on:
     paths:
       - '**.tf'
 
+concurrency:
+  group: metrics-collection-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   collect-metrics:
     runs-on: ubuntu-latest
@@ -28,14 +32,23 @@ jobs:
           path: .
           if_no_artifact_found: warn
       
+      
       - name: Check if history was downloaded
         run: |
+          echo "=== Metrics History Status ==="
           if [ -f "metrics.csv" ]; then
-            echo "✓ Found historical metrics from previous run"
-            echo "History rows: $(wc -l < metrics.csv)"
+            echo "✓ Historical metrics found"
+            echo "  Total rows: $(wc -l < metrics.csv)"
+            echo "  File size: $(du -h metrics.csv | cut -f1)"
+            echo "  Last modified: $(stat -c %y metrics.csv 2>/dev/null || stat -f %Sm metrics.csv)"
+            echo ""
+            echo "Preview (first 3 rows):"
+            head -n 3 metrics.csv
           else
-            echo "⚠ No historical metrics found (first run or artifact expired)"
+            echo "⚠ No historical metrics found"
+            echo "  This is the first run or artifact expired"
           fi
+          echo "==========================="
       
       - name: Setup Python
         uses: actions/setup-python@v4
