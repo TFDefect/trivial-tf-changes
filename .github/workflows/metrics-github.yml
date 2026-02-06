@@ -62,13 +62,34 @@ jobs:
               --commit ${{ github.sha }}
           fi
       
+      - name: Debug - List CSV files
+        run: |
+          echo "=== Listing all CSV files in workspace ==="
+          ls -la *.csv 2>/dev/null || echo "No CSV files found in root"
+          echo "=== Checking for specific files ==="
+          [ -f "metrics_history.csv" ] && echo "✓ metrics_history.csv exists" || echo "✗ metrics_history.csv NOT found"
+          [ -f "metrics.csv" ] && echo "✓ metrics.csv exists" || echo "✗ metrics.csv NOT found"
+          [ -f "metrics_new_instance.csv" ] && echo "✓ metrics_new_instance.csv exists" || echo "✗ metrics_new_instance.csv NOT found"
+      
       - name: Rename output file
         run: |
           if [ -f "metrics_history.csv" ]; then
+            echo "Found metrics_history.csv, renaming to metrics.csv"
             mv metrics_history.csv metrics.csv
+          elif [ -f "metrics_new_instance.csv" ]; then
+            echo "Found metrics_new_instance.csv, renaming to metrics.csv"
+            mv metrics_new_instance.csv metrics.csv
+          elif [ ! -f "metrics.csv" ]; then
+            echo "ERROR: No metrics file found!"
+            echo "Creating empty file to prevent upload failure"
+            touch metrics.csv
+            exit 1
+          else
+            echo "metrics.csv already exists, using it"
           fi
       
       - name: Upload active metrics
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: metrics-history
@@ -84,9 +105,14 @@ jobs:
           retention-days: 365
       
       - name: Display summary
+        if: success()
         run: |
-          if [ -f "metrics.csv" ]; then
+          if [ -f "metrics.csv" ] && [ -s "metrics.csv" ]; then
             echo "✓ Metrics collected successfully"
             echo "File size: $(du -h metrics.csv | cut -f1)"
             echo "Row count: $(wc -l < metrics.csv)"
+            echo "=== First 3 lines ==="
+            head -n 3 metrics.csv
+          else
+            echo "⚠ metrics.csv is empty or missing"
           fi
