@@ -22,6 +22,9 @@ RUN pip install -e .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+# Configure Git to trust any directory (for mounted volumes)
+RUN git config --global --add safe.directory '*'
+
 # Default command (can be overridden)
 ENTRYPOINT ["tf-metrics"]
 CMD ["--help"]
