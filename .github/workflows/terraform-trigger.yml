@@ -34,14 +34,16 @@ jobs:
             echo "Using historical context from previous metrics"
             docker run \
               -v ${{ github.workspace }}:/repo \
-              tf-metrics:latest /repo \
+              -w /repo \
+              tf-metrics:latest . \
               --commit ${{ github.sha }} \
-              --history /repo/metrics.csv
+              --history metrics.csv
           else
             echo "No historical context available, running without history"
             docker run \
               -v ${{ github.workspace }}:/repo \
-              tf-metrics:latest /repo \
+              -w /repo \
+              tf-metrics:latest . \
               --commit ${{ github.sha }}
           fi
       
