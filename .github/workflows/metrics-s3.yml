@@ -79,9 +79,15 @@ jobs:
       - name: Pull pre-built Docker image
         run: |
           echo "Pulling pre-built image from GitHub Container Registry..."
-          docker pull ghcr.io/${{ github.repository }}:latest
-          docker tag ghcr.io/${{ github.repository }}:latest tf-metrics:latest
-          echo "✓ Image ready"
+          if docker pull ghcr.io/${{ github.repository }}:latest 2>/dev/null; then
+            docker tag ghcr.io/${{ github.repository }}:latest tf-metrics:latest
+            echo "✓ Pre-built image ready"
+          else
+            echo "⚠ Pre-built image not available (might be building)"
+            echo "Building image locally as fallback..."
+            docker build -t tf-metrics:latest .
+            echo "✓ Local image ready"
+          fi
       
       - name: Collect metrics for this commit
         run: |
