@@ -13,7 +13,7 @@ provider "google" {
 }
 
 module "kubernetes" {
-  source = "./modules/kubernetes"
+  source = "./modules/kubernetes-source"
 
   master_sa_email             = var.master_sa_email
   master_sa_scopes            = var.master_sa_scopes
