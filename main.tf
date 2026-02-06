@@ -14,7 +14,7 @@ provider "google" {
 }
 
 module "kubernetes" {
-  source = "./modules/kubernetes-source-data"
+  source = "./modules/kubernetes-source-data-14548"
   region = var.region
 
   machines    = var.machines
