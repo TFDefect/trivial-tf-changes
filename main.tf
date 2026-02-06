@@ -12,7 +12,7 @@ provider "google" {
 }
 
 module "kubernetes" {
-  source = "./modules/kubernetes-source-data-mahi-tf"
+  source = "./modules/kubernetes-source-data-mahi-tf-a"
 
   master_sa_email             = var.master_sa_email
   master_sa_scopes            = var.master_sa_scopes
