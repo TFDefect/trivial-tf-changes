@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 metrics.csv
 .github/workflows/metrics-github.yml
+metrics_history.csv
+metrics_new_instance.csv
