@@ -76,8 +76,12 @@ jobs:
               --keep-rows 500
           fi
       
-      - name: Build Docker image
-        run: docker build -t tf-metrics:latest .
+      - name: Pull pre-built Docker image
+        run: |
+          echo "Pulling pre-built image from GitHub Container Registry..."
+          docker pull ghcr.io/${{ github.repository }}:latest
+          docker tag ghcr.io/${{ github.repository }}:latest tf-metrics:latest
+          echo "✓ Image ready"
       
       - name: Collect metrics for this commit
         run: |
