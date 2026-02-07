@@ -17,7 +17,7 @@ outputs:
     value: ${{ inputs.output_file }}
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/mahibegoug/tf-defect-prediction-github-action:latest'
+  image: 'docker://ghcr.io/tfdefect/trivial-tf-changes:latest'
   args:
     - '--output'
     - ${{ inputs.output_file }}
