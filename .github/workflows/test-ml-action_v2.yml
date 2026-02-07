@@ -38,7 +38,7 @@ jobs:
         uses: MahiBegoug/tf-ml-modeling@main
         with:
           csv_path: metrics.csv # Use the downloaded file
-          model: randomforest
+          model: randomforest_model
           threshold: 0.5
           s3_bucket: ${{ secrets.METRICS_S3_BUCKET }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
