@@ -259,6 +259,11 @@ def collect_metrics_jit(repo_path, target_commit, history_file=None, output_file
         print(f"  Historical metrics: {history_metrics_file}")
     else:
         print("No metrics collected for this commit")
+        # Ensure file exists even if empty, to prevent downstream failures
+        if not os.path.exists(current_metrics_file):
+            print(f"Creating empty metrics file: {current_metrics_file}")
+            with open(current_metrics_file, 'w', newline='', encoding='utf-8') as f:
+                pass  # Create empty file
 
 def merge_metrics_files(history_file, new_file, output_file):
     """
