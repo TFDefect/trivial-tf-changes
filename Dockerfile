@@ -24,6 +24,7 @@ ENV PYTHONUNBUFFERED=1
 
 # Configure Git to trust any directory (for mounted volumes)
 RUN git config --global --add safe.directory '*'
+RUN git config --global --add safe.directory /github/workspace
 
 # Default command (can be overridden)
 ENTRYPOINT ["tf-metrics"]
