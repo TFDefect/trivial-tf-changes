@@ -1,0 +1,51 @@
+name: Test Reuseable ML Action
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-ml-action_v2.yml'
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Download Metrics from S3 (Using AWS CLI)
+        env:
+          S3_BUCKET: ${{ secrets.METRICS_S3_BUCKET }}
+        run: |
+          aws s3 cp s3://$S3_BUCKET/metrics/metrics_history.csv metrics.csv
+          if [ ! -f metrics.csv ]; then
+            echo "Failed to download metrics.csv"
+            exit 1
+          fi
+
+      - name: Run ML Action
+        id: ml-prediction
+        uses: MahiBegoug/tf-ml-modeling@main
+        with:
+          csv_path: metrics.csv # Use the downloaded file
+          model: randomforest
+          threshold: 0.5
+          s3_bucket: ${{ secrets.METRICS_S3_BUCKET }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Verify Output
+        run: |
+          ls -l predictions.csv
+          cat predictions.csv
