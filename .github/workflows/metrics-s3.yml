@@ -145,6 +145,15 @@ jobs:
           else
             echo "⚠ No metrics_history.csv to upload"
           fi
+
+      - name: Trigger ML Prediction
+        if: success() # Only if metrics were successfully uploaded
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          repository: MahiBegoug/tf-ml-modeling
+          event-type: trigger-prediction
+          client-payload: '{"s3_bucket": "${{ env.S3_BUCKET }}", "model_name": "randomforest_model"}'
       
       - name: Upload archives to S3 (if any)
         if: hashFiles('metrics_archive_*.csv') != ''
