@@ -3,10 +3,17 @@ import sys
 import tempfile
 import argparse
 import csv
+import subprocess
 from pydriller import Repository
 
 # Add project root to sys.path
 sys.path.append(os.getcwd())
+
+# Ensure git trusts /github/workspace
+try:
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/github/workspace"], check=False)
+except Exception as e:
+    print(f"Warning: Failed to set safe.directory: {e}")
 
 from scripts.impacted_block_detection import ImpactedBlocks
 from scripts.process.process_metrics import ProcessMetrics
