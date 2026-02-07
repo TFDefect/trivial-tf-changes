@@ -25,5 +25,4 @@ module "kubernetes" {
 
   ssh_whitelist        = var.ssh_whitelist
   api_server_whitelist = var.api_server_whitelist
-  nodeport_whitelist   = var.nodeport_whitelist
 }
