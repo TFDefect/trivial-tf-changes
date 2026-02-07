@@ -185,7 +185,7 @@ def process_commit(commit, previous_contributions, author_commits_count):
 
     return contributions
 
-def collect_metrics_jit(repo_path, target_commit, history_file=None):
+def collect_metrics_jit(repo_path, target_commit, history_file=None, output_file="metrics.csv"):
     """
     Collect metrics for a specific commit (Just-In-Time).
     
@@ -193,13 +193,14 @@ def collect_metrics_jit(repo_path, target_commit, history_file=None):
         repo_path: Path to the repository
         target_commit: Commit hash to analyze
         history_file: Optional path to previous metrics.csv for historical context
+        output_file: Path to output current metrics CSV
     """
     print(f"Starting JIT metrics collection on: {repo_path} for commit {target_commit}")
     
     # File naming convention:
-    # - metrics.csv: Current run metrics only
+    # - metrics.csv: Current run metrics only (or custom name)
     # - metrics_history.csv: All accumulated historical metrics
-    current_metrics_file = "metrics.csv"
+    current_metrics_file = output_file
     history_metrics_file = "metrics_history.csv"
     
     # JIT context - can be hydrated from history file
@@ -282,12 +283,11 @@ def merge_metrics_files(history_file, new_file, output_file):
     print(f"Merged: {len(df_history)} history + {len(df_new)} new = {len(df_combined)} total rows")
 
 
-def collect_metrics_full(repo_path):
+def collect_metrics_full(repo_path, output_file="metrics.csv"):
     """
     Collect metrics for the entire repository history.
     """
     print(f"Starting FULL metrics collection on: {repo_path}")
-    output_file = "metrics.csv"
     
     # Remove existing file for full run
     if os.path.exists(output_file):
@@ -320,20 +320,11 @@ def collect_metrics_full(repo_path):
             
     print(f"Full Metrics collection complete. Output saved to {output_file}")
 
-def collect_metrics(repo_path, target_commit=None, history_file=None):
+def collect_metrics(repo_path, target_commit=None, history_file=None, output_file="metrics.csv"):
     if target_commit:
-        collect_metrics_jit(repo_path, target_commit, history_file)
+        collect_metrics_jit(repo_path, target_commit, history_file, output_file)
     else:
-        collect_metrics_full(repo_path)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Collect Terraform metrics.")
-    parser.add_argument("repo_path", type=str, nargs="?", default=os.getcwd(), help="Path to the repository")
-    parser.add_argument("--commit", type=str, help="Specific commit hash to process (JIT mode)")
-    parser.add_argument("--history", type=str, help="Path to previous metrics.csv for historical context (JIT mode only)")
-    
-    args = parser.parse_args()
-    collect_metrics(args.repo_path, args.commit, args.history)
+        collect_metrics_full(repo_path, output_file)
 
 def main():
     """Entry point for console script."""
@@ -341,9 +332,10 @@ def main():
     parser.add_argument("repo_path", type=str, nargs="?", default=os.getcwd(), help="Path to the repository")
     parser.add_argument("--commit", type=str, help="Specific commit hash to process (JIT mode)")
     parser.add_argument("--history", type=str, help="Path to previous metrics.csv for historical context (JIT mode only)")
+    parser.add_argument("--output", type=str, default="metrics.csv", help="Path to output CSV file")
     
     args = parser.parse_args()
-    collect_metrics(args.repo_path, args.commit, args.history)
+    collect_metrics(args.repo_path, args.commit, args.history, args.output)
 
 if __name__ == "__main__":
     main()

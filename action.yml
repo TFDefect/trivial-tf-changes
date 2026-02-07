@@ -1,0 +1,17 @@
+name: 'Terraform Defect Metrics'
+description: 'Collects defect prediction metrics from Terraform code changes'
+inputs:
+  output_file:
+    description: 'Name of the output CSV file'
+    required: false
+    default: 'metrics.csv'
+outputs:
+  metrics_file:
+    description: 'Path to the generated metrics CSV'
+    value: ${{ inputs.output_file }}
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - '--output'
+    - ${{ inputs.output_file }}
