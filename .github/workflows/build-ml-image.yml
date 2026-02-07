@@ -23,7 +23,8 @@ jobs:
       - name: Checkout ML modeling code
         uses: actions/checkout@v4
         with:
-          repository: 'TFDefect/tf-ml-modeling'  # Update with actual ML repo
+          repository: 'MahiBegoug/tf-ml-modeling'  # Using the known repo name
+          token: ${{ secrets.PAT_TOKEN }} # <--- REQUIRED for private repos
           path: ml-package
       
       - name: Log in to GitHub Container Registry
